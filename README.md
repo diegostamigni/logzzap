@@ -1,4 +1,4 @@
-[![Go Report](https://goreportcard.com/badge/github.com/diegostamigni/logzzap)](https://goreportcard.com/report/github.com/diegostamigni/logzzap)
+[![GoDoc][doc-img]][doc] [![Go Report][report-img]][report]
 
 # Logz Zap
 
@@ -9,3 +9,8 @@ To use, initialize logz like normal, create a new LogzCore, then wrap with a New
 ## Testing 
 
 To test this code use `LZ_TOKEN=MY_LOGZ_TOKEN go test`
+
+[doc-img]: https://pkg.go.dev/badge/diegostamigni/logzzap
+[doc]: https://pkg.go.dev/github.com/diegostamigni/logzzap
+[report-img]: https://goreportcard.com/badge/github.com/diegostamigni/logzzap
+[report]: https://goreportcard.com/report/github.com/diegostamigni/logzzap
