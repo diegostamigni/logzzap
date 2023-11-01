@@ -30,19 +30,41 @@ type LogzCore struct {
 	logger     logzSender
 	encoder    *json.Encoder
 	buffer     buffer
+	appName    string
+	env        string
+}
+
+type Option func(*LogzCore)
+
+func WithAppName(name string) Option {
+	return func(lc *LogzCore) {
+		lc.appName = name
+	}
+}
+
+func WithEnvironment(env string) Option {
+	return func(lc *LogzCore) {
+		lc.env = env
+	}
 }
 
 // NewLogzCore creates a new core to transmit logs to logz.
 // Logz token and other options should be set before creating a new core
-func NewLogzCore(sender logzSender, minLevel zapcore.Level) *LogzCore {
+func NewLogzCore(sender logzSender, minLevel zapcore.Level, options ...Option) *LogzCore {
 	buf := new(bytes.Buffer)
-	return &LogzCore{
+	core := &LogzCore{
 		LevelEnabler: minLevel,
 		coreFields:   make(map[string]any),
 		logger:       sender,
 		encoder:      json.NewEncoder(buf),
 		buffer:       buf,
 	}
+
+	for _, option := range options {
+		option(core)
+	}
+
+	return core
 }
 
 // With provides structure
@@ -68,6 +90,19 @@ func (c *LogzCore) Write(entry zapcore.Entry, fields []zapcore.Field) error {
 	fieldsMap := fieldsToMap(fields)
 	fieldsMap["message"] = entry.Message
 	fieldsMap["level"] = entry.Level.String()
+
+	if entry.Caller.Defined {
+		fieldsMap["caller.file"] = entry.Caller.File
+		fieldsMap["caller.function"] = fmt.Sprintf("%s:%d", entry.Caller.Function, entry.Caller.Line)
+	}
+
+	if len(c.appName) > 0 {
+		fieldsMap["app"] = c.appName
+	}
+
+	if len(c.env) > 0 {
+		fieldsMap["environment"] = c.env
+	}
 
 	err := c.encoder.Encode(fieldsMap)
 	if err != nil {
