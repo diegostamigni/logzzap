@@ -54,7 +54,6 @@ func NewLogzCore(sender logzSender, minLevel zapcore.Level, options ...Option) *
 	buf := new(bytes.Buffer)
 	core := &LogzCore{
 		LevelEnabler: minLevel,
-		coreFields:   make(map[string]any),
 		logger:       sender,
 		encoder:      json.NewEncoder(buf),
 		buffer:       buf,
@@ -69,11 +68,6 @@ func NewLogzCore(sender logzSender, minLevel zapcore.Level, options ...Option) *
 
 // With provides structure
 func (c *LogzCore) With(fields []zapcore.Field) zapcore.Core {
-	fieldMap := fieldsToMap(fields)
-	for k, v := range fieldMap {
-		c.coreFields[k] = v
-	}
-
 	return c
 }
 
