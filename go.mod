@@ -1,6 +1,6 @@
 module github.com/diegostamigni/logzzap
 
-go 1.21
+go 1.21.5
 
 require (
 	go.opentelemetry.io/otel v1.18.0

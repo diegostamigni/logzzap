@@ -84,11 +84,11 @@ func TestNewLogzCore(t *testing.T) {
 
 	coreFields := []zap.Field{zap.String("foo", "bar"), zap.String("moo", "cow")}
 	rc.With(coreFields)
-	if _, ok := rc.coreFields["foo"]; !ok {
+	if _, ok := rc.additionalFields["foo"]; !ok {
 		t.Fatalf("core fields not stored")
 	}
 
-	if _, ok := rc.coreFields["moo"]; !ok {
+	if _, ok := rc.additionalFields["moo"]; !ok {
 		t.Fatalf("core fields not stored")
 	}
 

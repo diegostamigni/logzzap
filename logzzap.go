@@ -1,10 +1,11 @@
 package logzzap
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
+	"sync"
 
 	"go.uber.org/zap/zapcore"
 )
@@ -16,22 +17,14 @@ type logzSender interface {
 	Send(payload []byte) error
 }
 
-type buffer interface {
-	io.ReadWriter
-
-	Reset()
-	Bytes() []byte
-}
-
 type LogzCore struct {
 	zapcore.LevelEnabler
 
-	coreFields map[string]any
-	logger     logzSender
-	encoder    *json.Encoder
-	buffer     buffer
-	appName    string
-	env        string
+	additionalFields map[string]any
+	logger           logzSender
+	appName          string
+	env              string
+	lock             *sync.RWMutex
 }
 
 type Option func(*LogzCore)
@@ -51,12 +44,11 @@ func WithEnvironment(env string) Option {
 // NewLogzCore creates a new core to transmit logs to logz.
 // Logz token and other options should be set before creating a new core
 func NewLogzCore(sender logzSender, minLevel zapcore.Level, options ...Option) *LogzCore {
-	buf := new(bytes.Buffer)
 	core := &LogzCore{
-		LevelEnabler: minLevel,
-		logger:       sender,
-		encoder:      json.NewEncoder(buf),
-		buffer:       buf,
+		LevelEnabler:     minLevel,
+		logger:           sender,
+		additionalFields: make(map[string]any),
+		lock:             new(sync.RWMutex),
 	}
 
 	for _, option := range options {
@@ -68,7 +60,20 @@ func NewLogzCore(sender logzSender, minLevel zapcore.Level, options ...Option) *
 
 // With provides structure
 func (c *LogzCore) With(fields []zapcore.Field) zapcore.Core {
-	return c
+	m := fieldsToMap(fields)
+
+	c.lock.Lock()
+	maps.Copy(c.additionalFields, m)
+	c.lock.Unlock()
+
+	return &LogzCore{
+		LevelEnabler:     c.LevelEnabler,
+		logger:           c.logger,
+		additionalFields: c.additionalFields,
+		appName:          c.appName,
+		env:              c.env,
+		lock:             new(sync.RWMutex),
+	}
 }
 
 // Check determines if this should be sent to roll bar based on LevelEnabler
@@ -81,33 +86,35 @@ func (c *LogzCore) Check(entry zapcore.Entry, checkedEntry *zapcore.CheckedEntry
 }
 
 func (c *LogzCore) Write(entry zapcore.Entry, fields []zapcore.Field) error {
-	fieldsMap := fieldsToMap(fields)
-	fieldsMap["message"] = entry.Message
-	fieldsMap["level"] = entry.Level.String()
+	m := fieldsToMap(fields)
+	m["message"] = entry.Message
+	m["level"] = entry.Level.String()
 
 	if entry.Caller.Defined {
-		fieldsMap["caller.file"] = entry.Caller.File
-		fieldsMap["caller.function"] = fmt.Sprintf("%s:%d", entry.Caller.Function, entry.Caller.Line)
+		m["caller.file"] = entry.Caller.File
+		m["caller.function"] = fmt.Sprintf("%s:%d", entry.Caller.Function, entry.Caller.Line)
 	}
 
 	if len(c.appName) > 0 {
-		fieldsMap["app"] = c.appName
+		m["app"] = c.appName
 	}
 
 	if len(c.env) > 0 {
-		fieldsMap["environment"] = c.env
+		m["environment"] = c.env
 	}
 
-	err := c.encoder.Encode(fieldsMap)
+	// copies additional fields set via With(...) in `m`
+	maps.Copy(m, c.additionalFields)
+
+	blob, err := json.Marshal(m)
 	if err != nil {
 		return fmt.Errorf("marshaling fields: %w", err)
 	}
 
-	if err := c.logger.Send(c.buffer.Bytes()); err != nil {
+	if err := c.logger.Send(blob); err != nil {
 		return fmt.Errorf("sending bytes: %w", err)
 	}
 
-	c.buffer.Reset()
 	return nil
 }
 
