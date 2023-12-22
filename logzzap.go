@@ -103,8 +103,10 @@ func (c *LogzCore) Write(entry zapcore.Entry, fields []zapcore.Field) error {
 		m["environment"] = c.env
 	}
 
-	// copies additional fields set via With(...) in `m`
+	c.lock.Lock()
 	maps.Copy(m, c.additionalFields)
+	clear(c.additionalFields)
+	c.lock.Unlock()
 
 	blob, err := json.Marshal(m)
 	if err != nil {
