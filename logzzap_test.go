@@ -2,15 +2,28 @@ package logzzap
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/logzio/logzio-go"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
+
+type mockSender struct {
+}
+
+func (m *mockSender) Write(b []byte) (int, error) {
+	return 0, nil
+}
+
+func (m *mockSender) Sync() error {
+	return nil
+}
+
+func (m *mockSender) Send(payload []byte) error {
+	return nil
+}
 
 func newEntry(level zapcore.Level, msg ...string) zapcore.Entry {
 	strBuilder := strings.Builder{}
@@ -30,17 +43,8 @@ func newEntry(level zapcore.Level, msg ...string) zapcore.Entry {
 	}
 }
 
-func newSender() (*logzio.LogzioSender, error) {
-	token := os.Getenv("LZ_TOKEN")
-	if token == "" {
-		return nil, fmt.Errorf("running tests without token")
-	}
-
-	return logzio.New(
-		token,
-		logzio.SetDebug(os.Stderr),
-		logzio.SetUrl("https://listener.logz.io:8071"),
-	)
+func newSender() (*mockSender, error) {
+	return &mockSender{}, nil
 }
 
 func TestLogzCoreLevels(t *testing.T) {
