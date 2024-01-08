@@ -20,11 +20,12 @@ type logzSender interface {
 type LogzCore struct {
 	zapcore.LevelEnabler
 
-	additionalFields map[string]any
-	logger           logzSender
-	appName          string
-	env              string
+	logger  logzSender
+	appName string
+	env     string
+
 	lock             *sync.RWMutex
+	additionalFields map[string]any
 }
 
 type Option func(*LogzCore)
@@ -72,7 +73,7 @@ func (c *LogzCore) With(fields []zapcore.Field) zapcore.Core {
 		additionalFields: c.additionalFields,
 		appName:          c.appName,
 		env:              c.env,
-		lock:             new(sync.RWMutex),
+		lock:             c.lock,
 	}
 }
 
