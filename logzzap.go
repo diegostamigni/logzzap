@@ -88,6 +88,7 @@ func (c *LogzCore) Check(entry zapcore.Entry, checkedEntry *zapcore.CheckedEntry
 
 func (c *LogzCore) Write(entry zapcore.Entry, fields []zapcore.Field) error {
 	m := fieldsToMap(fields)
+	m["@timestamp"] = entry.Time
 	m["message"] = entry.Message
 	m["level"] = entry.Level.String()
 
